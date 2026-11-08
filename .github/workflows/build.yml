@@ -1,0 +1,50 @@
+name: Build VideoGrab APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find the project
+        run: |
+          if [ -f VideoGrab-source.zip ]; then
+            unzip -o -q VideoGrab-source.zip -d unpacked
+            echo "PROJECT_DIR=unpacked/VideoGrab" >> "$GITHUB_ENV"
+          else
+            echo "PROJECT_DIR=." >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the APK
+        run: |
+          cd "$PROJECT_DIR"
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/VideoGrab.apk"
+
+      - name: Keep the APK as a build file
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoGrab-apk
+          path: VideoGrab.apk
+
+      - name: Publish to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: VideoGrab build ${{ github.run_number }}
+          files: VideoGrab.apk
